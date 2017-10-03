@@ -11,18 +11,21 @@ namespace AngularJS
     {
         static void Main(string[] args)
         {
-            CheckServiceNameDuplicates(@"C:\pe\platform\src\WebApp\scripts\app", new[] { "ts" }, "*");
+            CheckFeatureNameDuplicates("service", @"C:\pe\platform\src\WebApp\scripts\app", new[] { "ts" }, "*");
+            CheckFeatureNameDuplicates("directive", @"C:\pe\platform\src\WebApp\scripts\app", new[] { "ts" }, "*");
 
             if (Debugger.IsAttached)
                 Console.ReadKey();
         }
 
-        private static void CheckServiceNameDuplicates(string path, string[] fileTypes, string filePattern = "*")
+        private static void CheckFeatureNameDuplicates(string featurePattern, string path, string[] fileTypes, string filePattern = "*")
         {
-            var files = new List<string>();
-            var services = new List<(string File, string Line, string Name)>();
+            PrintHeader($"Feature: {featurePattern} @ {path}");
 
-            var serviceRegex = new Regex("\\.service\\(['\"](.*)['\"]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            var files = new List<string>();
+            var features = new List<(string File, string Line, string Name)>();
+
+            var featureRegex = new Regex($"\\.{featurePattern}\\(['\"](.*)['\"]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
             var injectRegex = new Regex("\\$inject[^\\]]*", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
 
             fileTypes
@@ -35,22 +38,22 @@ namespace AngularJS
 
                 foreach (var line in lines)
                 {
-                    var matches = serviceRegex.Matches(line);
+                    var matches = featureRegex.Matches(line);
 
                     if (matches.Any())
                     {
                         var name = matches[0].Groups[1].Value;
 
-                        services.Add((file, line, name));
+                        features.Add((file, line, name));
                     }
                 }
             }
 
             var totalDiscovered = 0;
 
-            foreach (var service in services)
+            foreach (var feature in features)
             {
-                var duplicates = services.Where(s => s.Name == service.Name);
+                var duplicates = features.Where(s => s.Name == feature.Name);
 
                 var duplicateCount = duplicates.Count();
 
@@ -59,10 +62,7 @@ namespace AngularJS
 
                 totalDiscovered++;
 
-                Console.WriteLine($"");
-                Console.WriteLine($"=================================================");
-                Console.WriteLine($"{service.Name}: {duplicateCount}");
-                Console.WriteLine($"=================================================");
+                PrintHeader($"{feature.Name}: {duplicateCount}");
 
                 foreach (var duplicate in duplicates)
                 {
@@ -84,7 +84,7 @@ namespace AngularJS
 
                     var injects = injectMatches[0].Value;
 
-                    if (Regex.IsMatch(injects, $"['\"]{service.Name}['\"]", RegexOptions.IgnoreCase))
+                    if (Regex.IsMatch(injects, $"['\"]{feature.Name}['\"]", RegexOptions.IgnoreCase))
                     {
                         matches.Add((file, injects));
                     }
@@ -101,10 +101,15 @@ namespace AngularJS
                 }
             }
 
+            PrintHeader($"Total discovered: {totalDiscovered}");
+        }
+
+        private static void PrintHeader(string header)
+        {
             Console.WriteLine("");
-            Console.WriteLine($"=================================================");
-            Console.WriteLine($"Total discovered: {totalDiscovered}");
-            Console.WriteLine($"=================================================");
+            Console.WriteLine($"==================================================================================================");
+            Console.WriteLine($"{header}");
+            Console.WriteLine($"==================================================================================================");
         }
     }
 }
